@@ -1,4 +1,4 @@
-# Haryana Classroom AI Teaching Assistant
+# Classroom AI Teaching Assistant
 
 A voice-enabled AI teaching assistant prototype for smart-board classrooms where teachers and students speak Hindi + English mixed Hinglish.
 
