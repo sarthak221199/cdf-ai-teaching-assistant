@@ -1,6 +1,7 @@
 import json
 import re
-from typing import Any, Dict, List, Optional
+from html import escape
+from typing import List, Optional
 
 import streamlit as st
 from google import genai
@@ -27,11 +28,13 @@ st.markdown(
         font-weight: 800;
         margin-bottom: 0.2rem;
     }
+
     .subtitle {
         font-size: 1.05rem;
         color: #4b5563;
         margin-bottom: 1rem;
     }
+
     .board {
         background: #0f172a;
         color: white;
@@ -40,7 +43,11 @@ st.markdown(
         border: 6px solid #334155;
         box-shadow: 0 8px 30px rgba(15, 23, 42, 0.25);
     }
-    .board h2, .board h3, .board p, .board li { color: white; }
+
+    .board h2, .board h3, .board p, .board li {
+        color: white;
+    }
+
     .big-card {
         background: #f8fafc;
         border: 1px solid #e2e8f0;
@@ -48,6 +55,7 @@ st.markdown(
         border-radius: 16px;
         margin-bottom: 0.8rem;
     }
+
     .step-card {
         background: white;
         border-left: 6px solid #2563eb;
@@ -56,6 +64,7 @@ st.markdown(
         margin: 0.5rem 0;
         color: #111827;
     }
+
     .quiz-card {
         background: white;
         border: 1px solid #cbd5e1;
@@ -64,7 +73,12 @@ st.markdown(
         margin-bottom: 1rem;
         color: #111827;
     }
-    .small-muted { color: #64748b; font-size: 0.9rem; }
+
+    .small-muted {
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+
     .tts-box button {
         background: #16a34a;
         color: white;
@@ -73,6 +87,98 @@ st.markdown(
         padding: 0.65rem 1rem;
         font-weight: 700;
         cursor: pointer;
+    }
+
+    /* -----------------------------
+       Improved Projected Visual
+    ----------------------------- */
+    .visual-board {
+        background: linear-gradient(135deg, #e8f4ff 0%, #f7fbff 100%);
+        border-radius: 28px;
+        padding: 34px;
+        margin-top: 18px;
+        margin-bottom: 30px;
+        border: 1px solid #d7ecff;
+        box-shadow: 0 8px 24px rgba(30, 64, 175, 0.10);
+    }
+
+    .visual-main {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: white;
+        padding: 22px 28px;
+        border-radius: 22px;
+        text-align: center;
+        max-width: 620px;
+        margin: 0 auto;
+        box-shadow: 0 8px 22px rgba(37, 99, 235, 0.28);
+    }
+
+    .visual-main-title {
+        font-size: 30px;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+
+    .visual-main-subtitle {
+        font-size: 16px;
+        margin-top: 8px;
+        opacity: 0.95;
+    }
+
+    .visual-arrow {
+        text-align: center;
+        font-size: 38px;
+        font-weight: 900;
+        color: #1e40af;
+        margin: 14px 0;
+    }
+
+    .visual-card-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 18px;
+    }
+
+    .visual-card {
+        background: white;
+        border-radius: 22px;
+        padding: 22px 16px;
+        text-align: center;
+        min-height: 145px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .visual-icon {
+        font-size: 38px;
+    }
+
+    .visual-text {
+        font-size: 20px;
+        font-weight: 750;
+        color: #111827;
+        line-height: 1.25;
+    }
+
+    @media (max-width: 900px) {
+        .visual-card-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 600px) {
+        .visual-card-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .visual-main-title {
+            font-size: 24px;
+        }
     }
     </style>
     """,
@@ -98,10 +204,8 @@ def get_client() -> genai.Client:
         st.stop()
     return genai.Client(api_key=api_key)
 
-def clean_json(text: str) -> dict:
-    import json
-    import re
 
+def clean_json(text: str) -> dict:
     if not text:
         raise ValueError("Empty response from model.")
 
@@ -187,37 +291,44 @@ def speech_button(text: str, button_label: str = "🔊 Read aloud"):
     st.components.v1.html(html, height=70)
 
 
-def make_visual_svg(topic: str, keywords: List[str]) -> str:
-    # Simple smart-board visual. It works offline and avoids image API dependency.
-    clean_topic = topic[:42]
-    words = keywords[:4] if keywords else ["Idea", "Example", "Recall", "Practice"]
-    while len(words) < 4:
-        words.append("Point")
+def render_projected_visual(title: str, visual_keywords: List[str]):
+    """Render a clean smart-board friendly classroom visual."""
+    icons = ["🌱", "⚡", "🧠", "🔍", "📘", "🧪", "🌍", "💡"]
 
-    return f"""
-    <svg width="100%" height="250" viewBox="0 0 900 250" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="0" width="900" height="250" rx="22" fill="#e0f2fe"/>
-      <rect x="350" y="85" width="200" height="80" rx="18" fill="#2563eb"/>
-      <text x="450" y="118" text-anchor="middle" font-size="24" fill="white" font-weight="700">{clean_topic}</text>
-      <text x="450" y="148" text-anchor="middle" font-size="16" fill="white">Classroom Visual</text>
+    keywords = visual_keywords[:4] if visual_keywords else ["Idea", "Example", "Recall", "Practice"]
 
-      <circle cx="150" cy="55" r="42" fill="#22c55e"/>
-      <text x="150" y="61" text-anchor="middle" font-size="15" fill="white" font-weight="700">{words[0][:14]}</text>
-      <line x1="190" y1="70" x2="350" y2="105" stroke="#334155" stroke-width="3"/>
+    while len(keywords) < 4:
+        keywords.append("Point")
 
-      <circle cx="740" cy="55" r="42" fill="#f97316"/>
-      <text x="740" y="61" text-anchor="middle" font-size="15" fill="white" font-weight="700">{words[1][:14]}</text>
-      <line x1="700" y1="70" x2="550" y2="105" stroke="#334155" stroke-width="3"/>
+    safe_title = escape(str(title))
 
-      <circle cx="160" cy="195" r="42" fill="#a855f7"/>
-      <text x="160" y="201" text-anchor="middle" font-size="15" fill="white" font-weight="700">{words[2][:14]}</text>
-      <line x1="200" y1="180" x2="350" y2="145" stroke="#334155" stroke-width="3"/>
+    cards_html = ""
 
-      <circle cx="730" cy="195" r="42" fill="#ef4444"/>
-      <text x="730" y="201" text-anchor="middle" font-size="15" fill="white" font-weight="700">{words[3][:14]}</text>
-      <line x1="690" y1="180" x2="550" y2="145" stroke="#334155" stroke-width="3"/>
-    </svg>
-    """
+    for i, keyword in enumerate(keywords):
+        icon = icons[i % len(icons)]
+        safe_keyword = escape(str(keyword))
+
+        cards_html += (
+            f'<div class="visual-card">'
+            f'<div class="visual-icon">{icon}</div>'
+            f'<div class="visual-text">{safe_keyword}</div>'
+            f'</div>'
+        )
+
+    html = (
+        f'<div class="visual-board">'
+        f'<div class="visual-main">'
+        f'<div class="visual-main-title">{safe_title}</div>'
+        f'<div class="visual-main-subtitle">Classroom Smart Board Visual</div>'
+        f'</div>'
+        f'<div class="visual-arrow">↓</div>'
+        f'<div class="visual-card-grid">'
+        f'{cards_html}'
+        f'</div>'
+        f'</div>'
+    )
+
+    st.markdown(html, unsafe_allow_html=True)
 
 def build_concept_prompt(topic: str, grade: str, language: str) -> str:
     return f"""
@@ -229,6 +340,12 @@ Task: Explain the concept for smart-board projection.
 Topic/request: {topic}
 Grade: {grade}
 Output language style: {language}
+
+Language rules:
+- If language is "Simple English", write only in simple English.
+- If language is "Hindi in Devanagari script", write Hindi using Devanagari script.
+- If language is "Hinglish / Roman Hindi", write Hindi-English mix using English letters.
+- Hinglish example: "Bacho, cloud computing ka matlab hai internet par data save karna."
 
 Strict rules:
 - Use simple classroom language.
@@ -248,7 +365,7 @@ Return JSON exactly in this format:
 {{
   "title": "short title",
   "one_line": "one sentence explanation",
-  "story_explanation": "simple Hinglish explanation under 90 words",
+  "story_explanation": "simple explanation under 90 words",
   "key_points": ["point 1", "point 2", "point 3", "point 4"],
   "visual_keywords": ["keyword1", "keyword2", "keyword3", "keyword4"],
   "teacher_script": "what teacher can say aloud under 70 words",
@@ -260,34 +377,44 @@ Return JSON exactly in this format:
 
 def build_quiz_prompt(topic: str, grade: str, language: str, count: int) -> str:
     return f"""
-    You are a voice-enabled quiz assistant for a government school classroom.
-    Students understand Hindi + English mixed Hinglish.
+You are a voice-enabled quiz assistant for a government school classroom.
+Students understand Hindi + English mixed Hinglish.
 
-    Topic/request: {topic}
-    Grade: {grade}
-    Output language style: {language}
-    Number of questions: {count}
+Topic/request: {topic}
+Grade: {grade}
+Output language style: {language}
+Number of questions: {count}
 
-    Strict rules:
-    - Questions must be simple and classroom-friendly.
-    - Include answer key and short explanation.
-    - Do not use harmful, political, or unrelated content.
-    - Return only valid JSON. No markdown.
+Language rules:
+- If language is "Simple English", write only in simple English.
+- If language is "Hindi in Devanagari script", write Hindi using Devanagari script.
+- If language is "Hinglish / Roman Hindi", write Hindi-English mix using English letters.
+- Hinglish example: "Bacho, chaliye ek quick quiz karte hain."
 
-    JSON format:
+Strict rules:
+- Questions must be simple and classroom-friendly.
+- Include answer key and short explanation.
+- Do not use harmful, political, or unrelated content.
+- Keep each question concise.
+- Return only valid JSON.
+- No markdown.
+- No extra text before or after JSON.
+- Do not use line breaks inside string values.
+
+Return JSON exactly in this format:
+{{
+  "title": "quiz title",
+  "announcement": "short verbal announcement for teacher",
+  "questions": [
     {{
-      "title": "quiz title",
-      "announcement": "short verbal announcement for teacher",
-      "questions": [
-        {{
-          "question": "question text",
-          "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
-          "answer": "A/B/C/D",
-          "explanation": "one simple explanation"
-        }}
-      ]
+      "question": "question text",
+      "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+      "answer": "A/B/C/D",
+      "explanation": "one simple explanation"
     }}
-    """
+  ]
+}}
+"""
 
 
 # -----------------------------
@@ -295,13 +422,25 @@ def build_quiz_prompt(topic: str, grade: str, language: str, count: int) -> str:
 # -----------------------------
 with st.sidebar:
     st.header("⚙️ Classroom Settings")
+
     mode = st.radio(
         "Choose feature",
         ["Live Concept Simplification", "Voice-Triggered Quizzing"],
         index=0,
     )
-    grade = st.selectbox("Class / Grade", ["Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10"], index=1)
-    language = st.selectbox("Language style", ["Hinglish", "Simple Hindi", "Simple English"], index=0)
+
+    grade = st.selectbox(
+        "Class / Grade",
+        ["Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10"],
+        index=1,
+    )
+
+    language = st.selectbox(
+        "Language style",
+        ["Hinglish / Roman Hindi", "Hindi in Devanagari script", "Simple English"],
+        index=0,
+    )
+
     quiz_count = st.slider("Quiz questions", 3, 8, 5)
 
     st.markdown("---")
@@ -313,6 +452,7 @@ with st.sidebar:
 # Header
 # -----------------------------
 st.markdown('<div class="main-title">🎙️ Classroom AI Teaching Assistant</div>', unsafe_allow_html=True)
+
 st.markdown(
     '<div class="subtitle">Hands-free teaching support for smart-board classrooms in Hindi + English mixed Hinglish.</div>',
     unsafe_allow_html=True,
@@ -322,9 +462,15 @@ col_left, col_right = st.columns([1.1, 0.9], gap="large")
 
 with col_left:
     st.markdown("### 1) Teacher input")
-    input_type = st.radio("Input method", ["Type topic/request", "Speak / upload audio"], horizontal=True)
+
+    input_type = st.radio(
+        "Input method",
+        ["Type topic/request", "Speak / upload audio"],
+        horizontal=True,
+    )
 
     transcript = ""
+
     if input_type == "Type topic/request":
         transcript = st.text_area(
             "Enter teacher command",
@@ -333,10 +479,17 @@ with col_left:
         )
     else:
         st.info("Record audio using the microphone widget. If your browser does not support it, upload a WAV/MP3 file.")
+
         audio_file = None
+
         if hasattr(st, "audio_input"):
             audio_file = st.audio_input("Record teacher voice")
-        uploaded_audio = st.file_uploader("Or upload audio", type=["wav", "mp3", "m4a", "webm"])
+
+        uploaded_audio = st.file_uploader(
+            "Or upload audio",
+            type=["wav", "mp3", "m4a", "webm"],
+        )
+
         final_audio = audio_file or uploaded_audio
 
         if final_audio and st.button("Transcribe audio"):
@@ -345,6 +498,7 @@ with col_left:
                 st.session_state["last_transcript"] = transcript
 
         transcript = st.session_state.get("last_transcript", "")
+
         if transcript:
             st.success("Transcript captured")
             st.write(transcript)
@@ -353,6 +507,7 @@ with col_left:
 
 with col_right:
     st.markdown("### 2) Smart-board preview")
+
     st.markdown(
         """
         <div class="big-card">
@@ -362,6 +517,7 @@ with col_right:
         """,
         unsafe_allow_html=True,
     )
+
     st.markdown(
         """
         <div class="big-card">
@@ -388,15 +544,19 @@ if generate:
             if mode == "Live Concept Simplification":
                 raw = call_gemini_text(build_concept_prompt(transcript, grade, language))
                 data = clean_json(raw)
+
                 st.session_state["mode"] = mode
                 st.session_state["output"] = data
                 st.session_state["topic"] = transcript
+
             else:
                 raw = call_gemini_text(build_quiz_prompt(transcript, grade, language, quiz_count))
                 data = clean_json(raw)
+
                 st.session_state["mode"] = mode
                 st.session_state["output"] = data
                 st.session_state["topic"] = transcript
+
         except Exception as e:
             st.error("Something went wrong while generating output.")
             st.exception(e)
@@ -425,22 +585,31 @@ if "output" in st.session_state:
         board_text = f"{title}. {one_line}. {story}. Key points: " + ", ".join(points)
 
         st.markdown('<div class="board">', unsafe_allow_html=True)
+
         st.subheader(f"📚 {title}")
         st.markdown(f"### {one_line}")
         st.write(story)
+
         st.markdown("#### Key Points")
+
         for i, p in enumerate(points, start=1):
-            st.markdown(f"<div class='step-card'><b>{i}.</b> {p}</div>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div class='step-card'><b>{i}.</b> {escape(str(p))}</div>",
+                unsafe_allow_html=True,
+            )
+
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("### Projected Visual")
-        st.components.v1.html(make_visual_svg(title, visual_keywords), height=270)
+        render_projected_visual(title, visual_keywords)
 
         c1, c2 = st.columns(2)
+
         with c1:
             st.markdown("### Teacher 30-sec script")
             st.info(teacher_script)
             speech_button(teacher_script or board_text)
+
         with c2:
             st.markdown("### Real-life example + quick check")
             st.success(example)
@@ -452,20 +621,31 @@ if "output" in st.session_state:
         questions = data.get("questions", [])
 
         st.markdown('<div class="board">', unsafe_allow_html=True)
+
         st.subheader(f"🧠 {title}")
         st.markdown(f"### {announcement}")
+
         st.markdown("</div>", unsafe_allow_html=True)
 
-        speech_button(announcement + " " + " ".join([q.get("question", "") for q in questions]))
+        speech_button(
+            announcement + " " + " ".join([q.get("question", "") for q in questions])
+        )
 
         st.markdown("### Quiz for smart-board")
+
         for idx, q in enumerate(questions, start=1):
-            st.markdown(f"<div class='quiz-card'><h4>Q{idx}. {q.get('question','')}</h4>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div class='quiz-card'><h4>Q{idx}. {escape(str(q.get('question', '')))}</h4>",
+                unsafe_allow_html=True,
+            )
+
             for opt in q.get("options", []):
                 st.write(opt)
+
             with st.expander("Show answer"):
-                st.success(f"Answer: {q.get('answer','')}")
+                st.success(f"Answer: {q.get('answer', '')}")
                 st.write(q.get("explanation", ""))
+
             st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -473,6 +653,7 @@ if "output" in st.session_state:
 # Footer
 # -----------------------------
 st.markdown("---")
+
 st.markdown(
     "<span class='small-muted'>Built as a prototype: Streamlit + Gemini API + audio transcription + browser text-to-speech.</span>",
     unsafe_allow_html=True,
